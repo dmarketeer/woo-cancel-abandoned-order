@@ -1,7 +1,7 @@
 # Changelog
 
-## [2.2.0](https://github.com/rvola/woo-cancel-abandoned-order/tree/2.2.0) - 2026-09-22
-[Full Changelog](https://github.com/rvola/woo-cancel-abandoned-order/compare/2.1.0...2.2.0)
+## [2.2.0](https://github.com/dmarketeer/woo-cancel-abandoned-order/tree/2.2.0) - 2026-09-22
+[Full Changelog](https://github.com/dmarketeer/woo-cancel-abandoned-order/compare/e2a12f5...2.2.0)
 
 * ✔︎ Compatibility WP 7.1
 * ✔︎ Compatibility WOO 11.1
