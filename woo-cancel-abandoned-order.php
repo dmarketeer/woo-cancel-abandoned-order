@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name:		    Cancel Abandoned Order
-Plugin URI:			    https://github.com/rvola/woo-cancel-abandoned-order
+Plugin URI:			    https://github.com/dmarketeer/woo-cancel-abandoned-order
 
 Description:		    Cancel "on hold" orders after a certain number of days or by hours
 

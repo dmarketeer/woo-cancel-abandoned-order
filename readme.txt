@@ -19,7 +19,7 @@ If you have check or transfer type orders for example, you will be able to set a
 
 Cancel Abandoned Order, will take care of checking this and change the status of the order to "Cancel" if you have not received payment on time.
 
-[**GitHub**](https://github.com/rvola/woo-cancel-abandoned-order) | [**Donate**](https://www.paypal.me/rvola)
+[**GitHub**](https://github.com/dmarketeer/woo-cancel-abandoned-order) | [**Donate**](https://www.paypal.me/rvola)
 
 == Installation ==
 
@@ -94,8 +94,8 @@ Follow the [tutorial here](https://github.com/rvola/woo-cancel-abandoned-order/w
 
 = I want to make suggestions =
 We’re glad you want to help us improve **Cancel Abandoned Order**!
-The GIT repository is available here [https://github.com/rvola/woo-cancel-abandoned-order](https://github.com/rvola/woo-cancel-abandoned-order)
+The GIT repository is available here [https://github.com/dmarketeer/woo-cancel-abandoned-order](https://github.com/dmarketeer/woo-cancel-abandoned-order)
 
 == Changelog ==
 
-[on GitHub](https://github.com/rvola/woo-cancel-abandoned-order/blob/master/CHANGELOG.md).
+[on GitHub](https://github.com/dmarketeer/woo-cancel-abandoned-order/blob/develop/CHANGELOG.md).

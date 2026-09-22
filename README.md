@@ -74,6 +74,6 @@ Follow the [tutorial here](https://github.com/rvola/woo-cancel-abandoned-order/w
 
 ## Links
 
-* [**Changelog**](https://github.com/rvola/woo-cancel-abandoned-order/blob/master/CHANGELOG.md)
+* [**Changelog**](https://github.com/dmarketeer/woo-cancel-abandoned-order/blob/develop/CHANGELOG.md)
 * [**Download on WordPress**](https://wordpress.org/plugins/woo-cancel-abandoned-order/)
 * [**WIKI**](https://github.com/rvola/woo-cancel-abandoned-order/wiki)
