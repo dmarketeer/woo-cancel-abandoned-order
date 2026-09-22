@@ -13,6 +13,10 @@
 * Perf / Orders are fetched by ID in batches of 50 instead of loading every order at once
 * Perf / Removed `wp_cache_flush()` which emptied the whole object cache on every run
 * Perf / Schedule check only on back-end requests, assets only on WooCommerce settings and order screens
+* New / Multibanco support: Stripe (`stripe_multibanco`, WOOCAO tab) and IfthenPay by Webdados (`multibanco_ifthen_for_woocommerce`)
+* New / Maximum of 200 orders per run (filter `woo_cao_max_per_run`), the rest is processed 5 minutes later
+* New / Lock to avoid two runs at the same time
+* New / WOOCAO tab supports several Stripe gateways; mode selector works per section
 * New / Boot on `plugins_loaded` with `class_exists( 'WooCommerce' )` instead of `is_plugin_active()`
 * New / Declare Cart & Checkout blocks compatibility
 * Requirements: WP 6.5, WooCommerce 8.2, PHP 7.4

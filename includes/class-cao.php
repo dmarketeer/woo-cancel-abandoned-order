@@ -36,6 +36,31 @@ class CAO {
 	const BATCH_SIZE = 50;
 
 	/**
+	 * Default maximum number of orders processed per run (each cancellation sends e-mails and restocks).
+	 */
+	const MAX_PER_RUN = 200;
+
+	/**
+	 * Single event used to continue once the per-run limit is reached.
+	 */
+	const CONTINUE_EVENT = 'woo_cao_cron_continue';
+
+	/**
+	 * Lock option, avoids concurrent runs.
+	 */
+	const LOCK_OPTION = 'woo_cao_lock';
+
+	/**
+	 * Lock lifetime in seconds.
+	 */
+	const LOCK_TTL = 15 * MINUTE_IN_SECONDS;
+
+	/**
+	 * Prefix of the options storing the WOOCAO settings of gateways configured in the WOOCAO tab.
+	 */
+	const OPTION_PREFIX = 'woo_cao_';
+
+	/**
 	 * Storage in the class of gateways
 	 *
 	 * @var gateways.
@@ -53,25 +78,54 @@ class CAO {
 
 	/**
 	 * Adds control fields in the gateway.
-	 * Hook available: 'woo_cao-gateways' / Adds a payment gateway for the control.
+	 * Hook available: 'woo_cao_gateways' / Adds a payment gateway for the control.
+	 * Gateways without a classic settings page (Stripe) are configured in the WOOCAO tab instead.
 	 */
 	private function add_field_gateways() {
 
 		$gateways_default = array(
 			'cheque',
 			'bacs',
+			'stripe_multibanco',                  // Multibanco by WooCommerce Stripe Gateway.
+			'multibanco_ifthen_for_woocommerce',  // Multibanco by IfthenPay (Webdados).
 		);
 
 		$this->gateways = apply_filters( 'woo_cao_gateways', $gateways_default );
-		if ( $this->gateways && is_array( $this->gateways ) ) {
-			foreach ( $this->gateways as $gateway ) {
-				if ( 'stripe' === $gateway && defined( 'WC_STRIPE_VERSION' ) && version_compare( WC_STRIPE_VERSION, '5.8.0', '>=' ) ) {
-					new Stripe();
-				} else {
-					add_filter( 'woocommerce_settings_api_form_fields_' . $gateway, array( $this, 'add_fields' ) );
-				}
+		if ( ! $this->gateways || ! is_array( $this->gateways ) ) {
+			return;
+		}
+
+		$stripe_ui    = defined( 'WC_STRIPE_VERSION' ) && version_compare( WC_STRIPE_VERSION, '5.8.0', '>=' );
+		$tab_gateways = array();
+
+		foreach ( $this->gateways as $gateway ) {
+			if ( $stripe_ui && Stripe::handles( $gateway ) ) {
+				$tab_gateways[] = $gateway;
+			} else {
+				add_filter( 'woocommerce_settings_api_form_fields_' . $gateway, array( $this, 'add_fields' ) );
 			}
 		}
+
+		if ( $tab_gateways ) {
+			new Stripe( $tab_gateways );
+		}
+	}
+
+	/**
+	 * Returns the WOOCAO settings of a gateway.
+	 * Own option first (gateways configured in the WOOCAO tab), then the gateway settings.
+	 *
+	 * @param string $gateway gateway ID.
+	 *
+	 * @return array
+	 */
+	public static function gateway_options( $gateway ) {
+		$options = get_option( self::OPTION_PREFIX . $gateway . '_settings' );
+		if ( ! is_array( $options ) ) {
+			$options = get_option( 'woocommerce_' . $gateway . '_settings' );
+		}
+
+		return is_array( $options ) ? $options : array();
 	}
 
 	/**
@@ -80,7 +134,8 @@ class CAO {
 	 */
 	private function add_event_cron() {
 
-		add_action( self::CRON_EVENT, array( $this, 'check_order' ), 10 );
+		add_action( self::CRON_EVENT, array( $this, 'check_order' ), 10, 0 );
+		add_action( self::CONTINUE_EVENT, array( $this, 'check_order' ), 10, 0 );
 
 		if ( ! ( is_admin() || wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) ) {
 			return;
@@ -116,70 +171,154 @@ class CAO {
 	 */
 	public static function clean_cron() {
 
-		if ( function_exists( 'as_unschedule_all_actions' ) ) {
-			as_unschedule_all_actions( self::CRON_EVENT );
+		foreach ( array( self::CRON_EVENT, self::CONTINUE_EVENT ) as $hook ) {
+			if ( function_exists( 'as_unschedule_all_actions' ) ) {
+				as_unschedule_all_actions( $hook );
+			}
+			wp_clear_scheduled_hook( $hook );
 		}
-		wp_clear_scheduled_hook( self::CRON_EVENT );
+		delete_option( self::LOCK_OPTION );
 	}
 
 	/**
 	 * Main method that tracks options and orders pending payment.
 	 * If the elements match (activation for the gateway, lifetime, command on hold), the system will cancel the command if it exceeds its time.
 	 * Uses the WooCommerce CRUD API only, so it works with both HPOS and the legacy posts storage.
+	 * Hook available: 'woo_cao_max_per_run' / Maximum number of orders processed per run (0 = unlimited).
 	 */
 	public function check_order() {
 
-		if ( empty( $this->gateways ) || ! is_array( $this->gateways ) ) {
+		if ( empty( $this->gateways ) || ! is_array( $this->gateways ) || ! $this->lock() ) {
 			return;
 		}
+
+		$max_per_run = (int) apply_filters( 'woo_cao_max_per_run', self::MAX_PER_RUN );
+		$remaining   = $max_per_run > 0 ? $max_per_run : PHP_INT_MAX;
 
 		// Status to cancel.
 		$woo_status = $this->woo_status();
 
-		foreach ( $this->gateways as $gateway ) {
-			$options = get_option( 'woocommerce_' . $gateway . '_settings' );
-			if ( ! is_array( $options ) || ! isset( $options['woocao_enabled'] ) || 'yes' !== $options['woocao_enabled'] ) {
-				continue;
-			}
+		try {
+			foreach ( $this->gateways as $gateway ) {
+				$remaining -= $this->check_gateway( $gateway, $woo_status, $remaining );
 
-			$mode     = isset( $options['woocao_mode'] ) && 'hourly' === $options['woocao_mode'] ? 'hourly' : 'daily';
-			$old_date = $this->limit_timestamp( $options, $mode );
-			$old_date = (int) apply_filters( 'woo_cao_date_order', $old_date, $gateway, $mode );
-
-			if ( $old_date <= 0 ) {
-				continue;
-			}
-
-			$page = 1;
-			do {
-				// A numeric value is interpreted by WooCommerce as a UTC timestamp.
-				$order_ids = wc_get_orders(
-					array(
-						'type'           => 'shop_order',
-						'status'         => $woo_status,
-						'payment_method' => $gateway,
-						'date_created'   => '<' . $old_date,
-						'orderby'        => 'ID',
-						'order'          => 'ASC',
-						'limit'          => self::BATCH_SIZE,
-						'paged'          => $page,
-						'return'         => 'ids',
-					)
-				);
-
-				$skipped = 0;
-				foreach ( $order_ids as $order_id ) {
-					if ( ! $this->cancel_order( $order_id ) ) {
-						$skipped++;
-					}
+				if ( $remaining <= 0 ) {
+					// Limit reached: the remaining orders are handled a few minutes later.
+					$this->schedule_continue();
+					break;
 				}
-
-				// Cancelled orders leave the result set; only skip over the ones still matching.
-				if ( $skipped >= self::BATCH_SIZE ) {
-					$page++;
-				}
-			} while ( count( $order_ids ) === self::BATCH_SIZE );
+			}
+		} finally {
+			$this->unlock();
 		}
+	}
+
+	/**
+	 * Cancel the abandoned orders of a gateway.
+	 *
+	 * @param string $gateway    gateway ID.
+	 * @param array  $woo_status status to cancel.
+	 * @param int    $limit      maximum number of orders to process.
+	 *
+	 * @return int Number of orders processed.
+	 */
+	private function check_gateway( $gateway, $woo_status, $limit ) {
+		$options = self::gateway_options( $gateway );
+		if ( ! isset( $options['woocao_enabled'] ) || 'yes' !== $options['woocao_enabled'] ) {
+			return 0;
+		}
+
+		$mode     = isset( $options['woocao_mode'] ) && 'hourly' === $options['woocao_mode'] ? 'hourly' : 'daily';
+		$old_date = $this->limit_timestamp( $options, $mode );
+		$old_date = (int) apply_filters( 'woo_cao_date_order', $old_date, $gateway, $mode );
+
+		if ( $old_date <= 0 ) {
+			return 0;
+		}
+
+		$processed = 0;
+		$page      = 1;
+		do {
+			$batch = (int) min( self::BATCH_SIZE, $limit - $processed );
+
+			// A numeric value is interpreted by WooCommerce as a UTC timestamp.
+			$order_ids = wc_get_orders(
+				array(
+					'type'           => 'shop_order',
+					'status'         => $woo_status,
+					'payment_method' => $gateway,
+					'date_created'   => '<' . $old_date,
+					'orderby'        => 'ID',
+					'order'          => 'ASC',
+					'limit'          => $batch,
+					'paged'          => $page,
+					'return'         => 'ids',
+				)
+			);
+
+			$skipped = 0;
+			foreach ( $order_ids as $order_id ) {
+				$processed++;
+				if ( ! $this->cancel_order( $order_id ) ) {
+					$skipped++;
+				}
+			}
+
+			// Cancelled orders leave the result set; only skip over the ones still matching.
+			if ( $skipped >= $batch ) {
+				$page++;
+			}
+		} while ( count( $order_ids ) === $batch && $processed < $limit );
+
+		return $processed;
+	}
+
+	/**
+	 * Schedule a single extra run to continue after the per-run limit.
+	 */
+	private function schedule_continue() {
+		$timestamp = time() + ( 5 * MINUTE_IN_SECONDS );
+
+		if ( function_exists( 'as_schedule_single_action' ) ) {
+			$scheduled = function_exists( 'as_has_scheduled_action' )
+				? as_has_scheduled_action( self::CONTINUE_EVENT )
+				: false !== as_next_scheduled_action( self::CONTINUE_EVENT );
+
+			if ( ! $scheduled ) {
+				as_schedule_single_action( $timestamp, self::CONTINUE_EVENT, array(), self::CRON_GROUP );
+			}
+		} elseif ( ! wp_next_scheduled( self::CONTINUE_EVENT ) ) {
+			wp_schedule_single_event( $timestamp, self::CONTINUE_EVENT );
+		}
+	}
+
+	/**
+	 * Prevents two runs at the same time (recurring action and continuation).
+	 * add_option() is atomic thanks to the unique option_name index.
+	 *
+	 * @return bool True if the lock has been acquired.
+	 */
+	private function lock() {
+		if ( add_option( self::LOCK_OPTION, time(), '', false ) ) {
+			return true;
+		}
+
+		// Stale lock (fatal error during a previous run).
+		$locked_at = (int) get_option( self::LOCK_OPTION );
+		if ( $locked_at < time() - self::LOCK_TTL ) {
+			update_option( self::LOCK_OPTION, time(), false );
+
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Release the lock.
+	 */
+	private function unlock() {
+		delete_option( self::LOCK_OPTION );
 	}
 
 	/**
@@ -317,6 +456,10 @@ class CAO {
 				'default'     => apply_filters( 'woo_cao_default_hours', '1' ),
 				'placeholder' => esc_html__( 'days', 'woo-cancel-abandoned-order' ),
 				'class'       => 'woo_cao-field-hourly woo_cao-field-moded',
+				'custom_attributes' => array(
+					'min'  => 1,
+					'step' => 1,
+				),
 			),
 			'woocao_days'    => array(
 				'title'       => esc_html__( 'Lifetime in days', 'woo-cancel-abandoned-order' ),
@@ -325,6 +468,10 @@ class CAO {
 				'default'     => apply_filters( 'woo_cao_default_days', '15' ),
 				'placeholder' => esc_html__( 'days', 'woo-cancel-abandoned-order' ),
 				'class'       => 'woo_cao-field-daily woo_cao-field-moded',
+				'custom_attributes' => array(
+					'min'  => 1,
+					'step' => 1,
+				),
 			),
 		);
 
