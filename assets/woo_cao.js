@@ -1,19 +1,21 @@
 (function ($) {
-	$(document).ready(function () {
+	$(function () {
 
-		var woo_cao_select = '.woo_cao-field-mode';
+		// Each settings section (table) has its own mode selector.
+		function woo_cao_check_mode($select) {
+			var $table = $select.closest('table');
+			var mode = $select.val();
 
-		function woo_cao_check_mode() {
-			$('.woo_cao-field-moded').parents('tr').hide();
-
-			var woo_cao_mode = $(woo_cao_select).find(':selected').val();
-			$('.woo_cao-field-' + woo_cao_mode).parents('tr').show();
+			$table.find('.woo_cao-field-moded').closest('tr').hide();
+			$table.find('.woo_cao-field-' + mode).closest('tr').show();
 		}
 
-		$(woo_cao_select).on('change', function () {
-			woo_cao_check_mode();
-		});
-
-		woo_cao_check_mode();
+		$('select.woo_cao-field-mode')
+			.on('change', function () {
+				woo_cao_check_mode($(this));
+			})
+			.each(function () {
+				woo_cao_check_mode($(this));
+			});
 	});
 })(jQuery);

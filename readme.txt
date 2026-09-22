@@ -2,10 +2,10 @@
 Contributors: rvola
 Donate link: https://www.paypal.me/rvola
 Tags: woocommerce, cancel orders, abandoned cart, automation, stripe
-Requires at least: 4.0
-Tested up to: 6.8
-Requires PHP: 7.0
-Stable tag: 2.1.0
+Requires at least: 6.5
+Tested up to: 7.1
+Requires PHP: 7.4
+Stable tag: 2.2.0
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -27,15 +27,16 @@ This section describes how to install the plugin and get it working.
 
 1. Upload the plugin files to the `/wp-content/plugins/woo-cancel-abandoned-order` directory, or install the plugin through the WordPress plugins screen directly.
 2. Activate the plugin through the 'Plugins' screen in WordPress
-3. By default you can control the orders on the payment gateways: Check and BACS. Go to the options of the payment pages on WooCommerce.
+3. By default you can control the orders on the payment gateways: Check, BACS and Multibanco (Stripe and IfthenPay). Go to the options of the payment pages on WooCommerce. Stripe gateways are configured in WooCommerce > Settings > WOOCAO.
 
 *To add another payment gateway, simply use the **woo_cao_gateways** filters, more information on the [Wiki](https://github.com/rvola/woo-cancel-abandoned-order/wiki)*
 
 == Requirement ==
 
-* PHP minimal: **7.0**
-* WordPress minimal: **4.0**
-* WooCommerce minimal : **2.2**
+* PHP minimal: **7.4**
+* WordPress minimal: **6.5**
+* WooCommerce minimal : **8.2**
+* Compatible with WooCommerce High-Performance Order Storage (HPOS)
 
 == Hooks ==
 _Action_
@@ -51,6 +52,7 @@ _Filters_
 * **woo_cao_default_hours** : Default value of the number of hours for order processing.
 * **woo_cao_default_days** : Default value of the number of days for order processing.
 * **woo_cao_statustocancel** ($status) : Allows you to add or change which WooCommerce order status the plugin should cancel.
+* **woo_cao_max_per_run** ($max) : Maximum number of orders processed per run (default 200, 0 = unlimited). When reached, a new run is scheduled 5 minutes later.
 
 == Wiki ==
 * [A help section on the code is available here](https://github.com/rvola/woo-cancel-abandoned-order/wiki)
@@ -75,6 +77,17 @@ Mode **"Hourly"**: every hour to 00 minutes
 Mode **"Daily"**: every day at 0:00
 
 *Since version 1.9.0, the action is no longer executed at XXh00. Refer to the "Scheduled Actions" tab of the "Status" page of WooCommerce.*
+
+= Multibanco =
+Multibanco references are paid later, so the orders stay "on hold". Supported by default:
+
+* **Stripe** (`stripe_multibanco`): enable it in WooCommerce > Settings > WOOCAO > Stripe - Multibanco.
+* **IfthenPay by Webdados** (`multibanco_ifthen_for_woocommerce`): enable it in the Multibanco payment method settings.
+
+Choose a lifetime longer than the validity of the Multibanco reference, otherwise a customer could pay a reference for an order that has already been cancelled.
+
+= Is there a limit of orders per run? =
+Yes, 200 orders per run by default (each cancellation sends e-mails and restores stock). The remaining orders are processed 5 minutes later. Use the **woo_cao_max_per_run** filter to change it.
 
 = I would like to cancel orders pending payment =
 Follow the [tutorial here](https://github.com/rvola/woo-cancel-abandoned-order/wiki/Change-the-status-type-for-the-cancellation-process) to change the status of orders to cancel. By default the "on-hold" commands are canceled.

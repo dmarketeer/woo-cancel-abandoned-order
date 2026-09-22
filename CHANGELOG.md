@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.2.0](https://github.com/rvola/woo-cancel-abandoned-order/tree/2.2.0) - 2026-09-22
+[Full Changelog](https://github.com/rvola/woo-cancel-abandoned-order/compare/2.1.0...2.2.0)
+
+* ✔︎ Compatibility WP 7.1
+* ✔︎ Compatibility WOO 11.1
+* Fix / Hourly mode: the cut-off date was passed as a string, which `wc_get_orders()` reduces to day precision (orders were only cancelled from the previous day onwards)
+* Fix / Dates are now computed as UTC timestamps (site timezone respected in daily mode)
+* Fix / Use `wc_get_order()` with order IDs instead of the deprecated `$order->ID` magic property ("doing it wrong" notice for each order)
+* Fix / Translations were never loaded (textdomain registered after `init`)
+* Fix / Deactivation and uninstall now also remove the Action Scheduler action
+* Perf / Orders are fetched by ID in batches of 50 instead of loading every order at once
+* Perf / Removed `wp_cache_flush()` which emptied the whole object cache on every run
+* Perf / Schedule check only on back-end requests, assets only on WooCommerce settings and order screens
+* New / Multibanco support: Stripe (`stripe_multibanco`, WOOCAO tab) and IfthenPay by Webdados (`multibanco_ifthen_for_woocommerce`)
+* New / Maximum of 200 orders per run (filter `woo_cao_max_per_run`), the rest is processed 5 minutes later
+* New / Lock to avoid two runs at the same time
+* New / WOOCAO tab supports several Stripe gateways; mode selector works per section
+* New / Boot on `plugins_loaded` with `class_exists( 'WooCommerce' )` instead of `is_plugin_active()`
+* New / Declare Cart & Checkout blocks compatibility
+* Requirements: WP 6.5, WooCommerce 8.2, PHP 7.4
+
 ## [2.1.0](https://github.com/rvola/woo-cancel-abandoned-order/tree/2.1.0) - 2025-07-15
 [Full Changelog](https://github.com/rvola/woo-cancel-abandoned-order/compare/2.0.0...2.1.0)
 
