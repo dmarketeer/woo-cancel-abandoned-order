@@ -2,10 +2,10 @@
 Contributors: rvola
 Donate link: https://www.paypal.me/rvola
 Tags: woocommerce, cancel orders, abandoned cart, automation, stripe
-Requires at least: 4.0
-Tested up to: 6.8
-Requires PHP: 7.0
-Stable tag: 2.1.0
+Requires at least: 6.5
+Tested up to: 7.1
+Requires PHP: 7.4
+Stable tag: 2.2.0
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -33,9 +33,10 @@ This section describes how to install the plugin and get it working.
 
 == Requirement ==
 
-* PHP minimal: **7.0**
-* WordPress minimal: **4.0**
-* WooCommerce minimal : **2.2**
+* PHP minimal: **7.4**
+* WordPress minimal: **6.5**
+* WooCommerce minimal : **8.2**
+* Compatible with WooCommerce High-Performance Order Storage (HPOS)
 
 == Hooks ==
 _Action_

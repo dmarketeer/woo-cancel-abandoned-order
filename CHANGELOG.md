@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.2.0](https://github.com/rvola/woo-cancel-abandoned-order/tree/2.2.0) - 2026-09-22
+[Full Changelog](https://github.com/rvola/woo-cancel-abandoned-order/compare/2.1.0...2.2.0)
+
+* ✔︎ Compatibility WP 7.1
+* ✔︎ Compatibility WOO 11.1
+* Fix / HPOS: orders were loaded with `$order->ID`, which does not exist on `WC_Order` (orders were never cancelled with HPOS)
+* Fix / Dates are now computed as UTC timestamps (site timezone respected in daily mode)
+* Fix / Translations were never loaded (textdomain registered after `init`)
+* Fix / Deactivation and uninstall now also remove the Action Scheduler action
+* Perf / Orders are fetched by ID in batches of 50 instead of loading every order at once
+* Perf / Removed `wp_cache_flush()` which emptied the whole object cache on every run
+* Perf / Schedule check only on back-end requests, assets only on WooCommerce settings and order screens
+* New / Boot on `plugins_loaded` with `class_exists( 'WooCommerce' )` instead of `is_plugin_active()`
+* New / Declare Cart & Checkout blocks compatibility
+* Requirements: WP 6.5, WooCommerce 8.2, PHP 7.4
+
 ## [2.1.0](https://github.com/rvola/woo-cancel-abandoned-order/tree/2.1.0) - 2025-07-15
 [Full Changelog](https://github.com/rvola/woo-cancel-abandoned-order/compare/2.0.0...2.1.0)
 

@@ -30,11 +30,19 @@ class WP {
 	 */
 	public function __construct() {
 
-		add_filter( 'init', array( $this, 'load_languages' ) );
-		add_filter( 'plugin_row_meta', array( $this, 'plugin_row_meta' ), 10, 2 );
-
 		$this->required();
 
+		add_action( 'init', array( $this, 'load_languages' ) );
+		add_filter( 'plugin_row_meta', array( $this, 'plugin_row_meta' ), 10, 2 );
+
+		// Late boot so third parties can still hook 'woo_cao_gateways' during init.
+		add_action( 'wp_loaded', array( $this, 'boot' ) );
+	}
+
+	/**
+	 * Start the plugin components.
+	 */
+	public function boot() {
 		new CAO();
 		new Updater();
 	}
@@ -43,10 +51,10 @@ class WP {
 	 * Required files
 	 */
 	public function required() {
-		require_once dirname( __FILE__ ) . '/class-cao.php';
-		require_once dirname( __FILE__ ) . '/class-stripe.php';
-		require_once dirname( __FILE__ ) . '/class-updater.php';
-		include_once dirname( __FILE__ ) . '/update.php';
+		require_once __DIR__ . '/class-cao.php';
+		require_once __DIR__ . '/class-stripe.php';
+		require_once __DIR__ . '/class-updater.php';
+		include_once __DIR__ . '/update.php';
 	}
 
 	/**
@@ -56,8 +64,7 @@ class WP {
 	 */
 	public static function instance() {
 		if ( is_null( self::$_singleton ) ) {
-			$class            = __CLASS__;
-			self::$_singleton = new $class();
+			self::$_singleton = new self();
 		}
 
 		return self::$_singleton;
@@ -83,7 +90,7 @@ class WP {
 			array_push(
 				$plugin_meta,
 				sprintf(
-					'<a href="https://www.paypal.me/rvola" target="_blank">%s</a>',
+					'<a href="https://www.paypal.me/rvola" target="_blank" rel="noopener noreferrer">%s</a>',
 					esc_html__( 'Donate', 'woo-cancel-abandoned-order' )
 				)
 			);
