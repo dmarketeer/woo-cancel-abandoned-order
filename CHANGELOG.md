@@ -5,8 +5,9 @@
 
 * ✔︎ Compatibility WP 7.1
 * ✔︎ Compatibility WOO 11.1
-* Fix / HPOS: orders were loaded with `$order->ID`, which does not exist on `WC_Order` (orders were never cancelled with HPOS)
+* Fix / Hourly mode: the cut-off date was passed as a string, which `wc_get_orders()` reduces to day precision (orders were only cancelled from the previous day onwards)
 * Fix / Dates are now computed as UTC timestamps (site timezone respected in daily mode)
+* Fix / Use `wc_get_order()` with order IDs instead of the deprecated `$order->ID` magic property ("doing it wrong" notice for each order)
 * Fix / Translations were never loaded (textdomain registered after `init`)
 * Fix / Deactivation and uninstall now also remove the Action Scheduler action
 * Perf / Orders are fetched by ID in batches of 50 instead of loading every order at once
