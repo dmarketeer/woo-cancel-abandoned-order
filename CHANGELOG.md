@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.2.1](https://github.com/dmarketeer/woo-cancel-abandoned-order/tree/2.2.1) - 2026-09-22
+[Full Changelog](https://github.com/dmarketeer/woo-cancel-abandoned-order/compare/2.2.0...2.2.1)
+
+* Fix / Duplicate recurring actions `woo_cao_cron` (created by concurrent requests, e.g. with 2.1.0) are now detected and cancelled automatically, keeping only the next one
+* Fix / Actions are scheduled as unique (Action Scheduler 3.6+) to avoid new duplicates
+
 ## [2.2.0](https://github.com/dmarketeer/woo-cancel-abandoned-order/tree/2.2.0) - 2026-09-22
 [Full Changelog](https://github.com/dmarketeer/woo-cancel-abandoned-order/compare/e2a12f5...2.2.0)
 

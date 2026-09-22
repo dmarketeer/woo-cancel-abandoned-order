@@ -142,20 +142,22 @@ class CAO {
 		}
 
 		// Check if Action Scheduler exist.
-		if ( function_exists( 'as_schedule_recurring_action' ) ) {
-			$scheduled = function_exists( 'as_has_scheduled_action' )
-				? as_has_scheduled_action( self::CRON_EVENT )
-				: false !== as_next_scheduled_action( self::CRON_EVENT );
+		if ( function_exists( 'as_schedule_recurring_action' ) && function_exists( 'as_get_scheduled_actions' ) ) {
+			$pending = $this->pending_actions( self::CRON_EVENT );
 
-			if ( ! $scheduled ) {
+			if ( ! $pending ) {
 				wp_clear_scheduled_hook( self::CRON_EVENT );
+				// $unique (Action Scheduler 3.6+) avoids a duplicate when two requests schedule at the same time.
 				as_schedule_recurring_action(
 					strtotime( 'yesterday 0 hour' ),
 					HOUR_IN_SECONDS,
 					self::CRON_EVENT,
 					array(),
-					self::CRON_GROUP
+					self::CRON_GROUP,
+					true
 				);
+			} elseif ( count( $pending ) > 1 ) {
+				$this->cancel_duplicates( $pending );
 			}
 		} elseif ( ! wp_next_scheduled( self::CRON_EVENT ) ) {
 			wp_schedule_event(
@@ -163,6 +165,46 @@ class CAO {
 				'hourly',
 				self::CRON_EVENT
 			);
+		}
+	}
+
+	/**
+	 * Returns the IDs of the pending actions of a hook, the next one first.
+	 *
+	 * @param string $hook action hook.
+	 *
+	 * @return int[]
+	 */
+	private function pending_actions( $hook ) {
+		return array_map(
+			'intval',
+			(array) as_get_scheduled_actions(
+				array(
+					'hook'     => $hook,
+					'status'   => \ActionScheduler_Store::STATUS_PENDING,
+					'orderby'  => 'date',
+					'order'    => 'ASC',
+					'per_page' => 10,
+				),
+				'ids'
+			)
+		);
+	}
+
+	/**
+	 * Keep only the next pending action and cancel the other ones.
+	 * Recurring duplicates (created by concurrent requests, e.g. with version 2.1.0) would otherwise run forever.
+	 *
+	 * @param int[] $action_ids pending actions, the next one first.
+	 */
+	private function cancel_duplicates( $action_ids ) {
+		foreach ( array_slice( $action_ids, 1 ) as $action_id ) {
+			try {
+				\ActionScheduler::store()->cancel_action( $action_id );
+			} catch ( \Exception $e ) {
+				// Already cancelled or run in the meantime.
+				continue;
+			}
 		}
 	}
 
@@ -285,7 +327,7 @@ class CAO {
 				: false !== as_next_scheduled_action( self::CONTINUE_EVENT );
 
 			if ( ! $scheduled ) {
-				as_schedule_single_action( $timestamp, self::CONTINUE_EVENT, array(), self::CRON_GROUP );
+				as_schedule_single_action( $timestamp, self::CONTINUE_EVENT, array(), self::CRON_GROUP, true );
 			}
 		} elseif ( ! wp_next_scheduled( self::CONTINUE_EVENT ) ) {
 			wp_schedule_single_event( $timestamp, self::CONTINUE_EVENT );

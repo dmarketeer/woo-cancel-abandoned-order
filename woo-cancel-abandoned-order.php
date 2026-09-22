@@ -5,7 +5,7 @@ Plugin URI:			    https://github.com/dmarketeer/woo-cancel-abandoned-order
 
 Description:		    Cancel "on hold" orders after a certain number of days or by hours
 
-Version:			    2.2.0
+Version:			    2.2.1
 Revision:			    2026-09-22
 Creation:               2017-10-28
 
@@ -36,7 +36,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'WOOCAO_FILE', __FILE__ );
-define( 'WOOCAO_VERSION', '2.2.0' );
+define( 'WOOCAO_VERSION', '2.2.1' );
 
 // Declare compatibility with WooCommerce features (HPOS & Cart/Checkout blocks).
 add_action(
